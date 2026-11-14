@@ -34,6 +34,8 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+    volumes:
+      - ../../backend/src:/app/src
   nginx:
     image: nginx:stable-alpine
     restart: "no"
