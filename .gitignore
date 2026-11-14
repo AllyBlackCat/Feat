@@ -1,5 +1,5 @@
 /infra/local/.env
 /infra/local/backups/
-backend/target/
-backend/.env
+/backend/target/
+/backend/.env
 .DS_Store
