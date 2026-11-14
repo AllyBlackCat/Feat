@@ -15,6 +15,16 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    restart: "no"
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    depends_on:
+      db:
+        condition: service_healthy
 volumes:
   postgres_data:
