@@ -8,6 +8,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class HelloControllerTest {
@@ -28,4 +29,19 @@ class HelloControllerTest {
                 .andExpect(jsonPath("$.application")
                         .value("Feat"));
     }
+
+    @Test
+    @DisplayName ("POSTリクエストでHello, {name}!を返すことを確認する")
+    void shouldReturnGreetingFromPostRequest() throws Exception {
+        mockMvc.perform(post("/api/hello")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Ally\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message")
+                        .value("Hello, Ally!"))
+                .andExpect(jsonPath("$.application")
+                        .value("Feat"));
+    }
+
+
 }
