@@ -1,5 +1,5 @@
 
-package io.github.allyblackcat.feat;
+package io.github.allyblackcat.feat.hello;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;

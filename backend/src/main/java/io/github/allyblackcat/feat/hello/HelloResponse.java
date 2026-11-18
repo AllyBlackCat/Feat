@@ -1,4 +1,4 @@
-package io.github.allyblackcat.feat;
+package io.github.allyblackcat.feat.hello;
 
 public record HelloResponse(
     String message, 
