@@ -1,0 +1,6 @@
+/infra/local/.env
+/infra/local/backups/
+/backend/target/
+/backend/.env
+/.vscode/
+.DS_Store
