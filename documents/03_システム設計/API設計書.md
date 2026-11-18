@@ -5457,7 +5457,7 @@
 7. not_started/returnedでは担当者の設定・変更・解除を許可し、in_progress/review_requested/in_reviewでは別担当者への変更のみ許可（null解除不可）。completedでは変更不可とする。
 8. assignee_user_idが非nullならusers.idを照会し、users.is_available=TRUEを検証する。対象users行をロックし、members.project_id、members.user_id、members.is_active=TRUEを満たすmembers.idへ解決する。
 9. reviewer_member_idと新しいassignee_member_idの重複を拒否する。nullでは許可状態に限って担当者を解除する。
-10. tasks.assignee_member_idを更新しupdated_atを設定する。task_historiesへfield_name=assignee_user_id、old_value/new_value（変更前後のusers.idを文字列化、未設定はNULL）。DB更新対象のtasks.assignee_member_idとは区別し、履歴では論理的な担当者ユーザーIDを記録するを記録する。
+10. tasks.assignee_member_idを変更し、updated_atを更新する。task_historiesにはfield_name=assignee_user_id、old_value/new_value=変更前後のusers.idを文字列化した値（未設定はNULL）として記録する。DB上の更新列tasks.assignee_member_idと、履歴上の論理項目assignee_user_idを区別する。
 11. 同一担当者への指定は更新と履歴登録を省略して現在値を返す。
 12. 更新後の整合性を確認する。
     - 処理の全成功を確認してコミットする。途中失敗はすべてロールバックする。
@@ -6373,11 +6373,12 @@
 7. 利用者のシステム管理者権限または対象プロジェクトの有効なmembers所属を検証する。
 8. contentの前後空白を除去し、文字数・制御文字の入力規則を適用する。
 9. commentsへtask_id=tasks.id、author_id=ログインユーザーID、content、is_deleted=FALSE、created_at=現在日時、updated_at=現在日時、edited_at=NULL、deleted_at=NULLを登録する。
-10. SERIALIZABLEでプロジェクト状態変更やタスク無効化との競合を制御し、コミット後に201 Createdと作成したコメントのidを含むJSONを返す。個別コメント取得APIは未定義のためLocationヘッダーは付与しない。
-11. 処理結果を確定する。
-    - 更新と関連する日時を同一トランザクションでコミットする。途中失敗時はロールバックし、40001/40P01は再検証を含む上限付き再試行を行う。
-12. 正常終了する。
-    - 201 Createdで応答する。
+10. 更新トランザクションを確定する。
+    - 対象プロジェクトの終端化やタスク無効化との競合をSERIALIZABLEで制御し、コメント登録が確定した場合にのみコミットする。
+    - 途中失敗時はロールバックする。SQLSTATE 40001/40P01では回数上限付きでトランザクション全体を再試行し、入力・認可・タスク状態を再検証する。
+11. 正常終了する。
+    - コミット成功後に201 Createdと登録したコメントのidを含むJSONを返す。
+    - 個別コメント取得APIは定義していないため、Locationヘッダーは付与しない。
 
 #### 8. 関連仕様
 
@@ -6904,7 +6905,7 @@
 - APIの目的
     - 閲覧可能な全プロジェクトのタスクを複数条件によって検索し、許可された並び順でページングする。
 - 実現する機能
-    1. ログインユーザーがログインユーザーが閲覧可能な全プロジェクトのデータを要求する。
+    1. ログインユーザーが閲覧可能な全プロジェクトのタスクを検索する。
     2. システムは認証情報と閲覧権限を検証する。
     3. 指定された検索・ページング・並び替え条件を検証する。
     4. システムはデータを検索・集計し、表示用の公開IDと項目を整形する。
@@ -6946,7 +6947,9 @@
 | project_public_id | string | × | プロジェクト公開UUID。閲覧できないプロジェクト指定時は空配列 |
 | assignee_user_id | integer | × | 1以上のユーザーID。未設定の担当者には一致しない |
 | reviewer_user_id | integer | × | 1以上のユーザーID。未設定のレビュアーには一致しない |
-| status | string | × | not_started/in_progress/review_requested/in_review/returned/completed |
+| status | string | × | not_started/in_progress/review_requested/in_review/returned/completedのいずれか1つ。詳細な状態指定用 |
+| completion | string | × | all/not_completed/completed。省略時all。完了/未完了の横断検索に使用 |
+| project_scope | string | × | all/current。省略時all。currentはprojects.statusがdraftまたはactiveのものに限定 |
 | priority | string | × | low/medium/high/urgent |
 | due_from | string | × | YYYY-MM-DD形式。期限の下限（含む） |
 | due_to | string | × | YYYY-MM-DD形式。期限の上限（含む） |
@@ -6963,9 +6966,14 @@
 - 入力制約
     - 未定義のクエリパラメータは受理しない。
     - 本APIの項目表に記載された数値・日付・列挙値の制約を適用する。ページと件数は整数、並び順は定義された値に限定する。
+    - statusとcompletionは併用可能。両方を指定した場合はAND条件とする（矛盾する組合せは0件として扱う）。
+    - completion=not_completedはtasks.status <> 'completed'、completion=completedはtasks.status='completed'を意味する。allは状態を制限しない。
+    - project_scope=currentはprojects.status IN ('draft','active')とし、allではプロジェクト状態による制限を設けない。
     - sort_byはホワイトリストに従いSQL列へ変換する。ソートキーや検索条件をSQLに直接連結しない。
 - リクエスト例
     - GET /api/tasks?keyword=login&status=in_progress&page=1&size=20
+    - GET /api/tasks?assignee_user_id=2&completion=not_completed&project_scope=current&due_to=2026-11-17&sort_by=due_date&order=asc&page=1&size=20
+    - 2番目の例は、ログインユーザーのIDが2の場合の期限超過タスクの検索例。ユーザーIDはAPI-01-005から取得し、クライアントが任意のIDを送ってもサーバー側の閲覧権限が優先する。
 
 #### 5. レスポンス
 
@@ -7056,11 +7064,11 @@
     - 表示対象のプロジェクト・タスクをサーバー側で制約する。
 4. 読み取り専用トランザクションを開始する。
     - 集計・一覧・件数が複数クエリになる場合、REPEATABLE READの同一スナップショットを用いて整合性を保つ。
-5. 検索条件ごとに型、列挙値を検証する。due_from・due_toの両方があればdue_from<=due_toを確認する。
+5. 検索条件ごとに型、列挙値を検証する。completionとproject_scopeは上記の許可値だけを受け入れる。due_from・due_toの両方があればdue_from<=due_toを確認する。
 6. tasksをprojectsに結合し、非システム管理者ではmembers.project_id=projects.idかつmembers.user_id=ログインユーザーIDかつmembers.is_active=TRUEをアクセス条件に含める。
 7. keywordがあればtasks.titleまたはtasks.descriptionへの部分一致（OR）を適用する。他の指定条件との関係はANDとする。
 8. assignee_user_id/reviewer_user_idはtasks.assignee_member_id/reviewer_member_idをmembersへ結合してusers.idを比較する。除外済みメンバーを担当していた過去タスクの検索でも、タスク自体のプロジェクト閲覧権限を優先する。
-9. include_inactive=falseの場合はtasks.is_active=TRUEに限定し、trueならFALSEも含める。project statusは条件にしない。
+9. include_inactive=falseの場合はtasks.is_active=TRUEに限定し、trueならFALSEも含める。completion=not_completedならtasks.status<>'completed'、completedならtasks.status='completed'を追加し、allなら追加しない。project_scope=currentではprojects.status IN ('draft','active')を追加し、allではプロジェクト状態を絞り込まない。これらは他のフィルタとANDで組み合わせる。
 10. sort_byはホワイトリスト上の実カラムにのみ変換してSQLに設定する。priorityはCASE式でlow<medium<high<urgentとして並べ替える。
 11. 同一ソート値のタイブレークはtasks.idの一定順序で行い、count、offset/limit、ページ情報を一貫したスナップショットから返す。
 12. レスポンスを生成する。
@@ -7084,6 +7092,7 @@
     - API-03-002
     - API-05-001
     - API-10-001〜002
+    - API-11-001
 
 ### API-10-001 担当タスク一覧取得
 
@@ -7499,7 +7508,10 @@
 
 | 項目名 | データ型 | 必須 | 説明 |
 |---|---|---|---|
-| incomplete_task_count | integer | ○ | 本人が担当する現在業務対象タスクのうちstatus≠completedの件数 |
+| incomplete_task_count | integer | ○ | 本人が担当する現在業務対象タスクのうちstatus≠completedの件数（上限なし） |
+| overdue_task_count | integer | ○ | 期限超過タスクの総件数（表示上限20件とは独立） |
+| due_soon_task_count | integer | ○ | 期限接近タスクの総件数（表示上限20件とは独立） |
+| review_request_count | integer | ○ | 本人へのレビュー依頼タスクの総件数（表示上限20件とは独立） |
 | overdue_tasks | array | ○ | 本人の未完了担当タスクで期限が今日より前のもの。期限昇順、最大20件 |
 | due_soon_tasks | array | ○ | 本人の未完了担当タスクで期限が今日〜7日後（両端含む）のもの。期限昇順、最大20件 |
 | review_requests | array | ○ | 本人がレビュアーでstatus=review_requestedのタスク。更新日時降順、最大20件 |
@@ -7517,6 +7529,9 @@
 ```json
 {
   "incomplete_task_count": 2,
+  "overdue_task_count": 0,
+  "due_soon_task_count": 1,
+  "review_request_count": 0,
   "overdue_tasks": [],
   "due_soon_tasks": [
     {
@@ -7566,12 +7581,14 @@
 
 | レスポンス配列 | 並び順 | 取得上限 | 全件確認先 |
 |---|---|---|---|
-| overdue_tasks | due_date昇順、tasks.id昇順 | 20件 | API-09-001：期限上限・未完了ステータスで検索 |
-| due_soon_tasks | due_date昇順、tasks.id昇順 | 20件 | API-09-001：期限範囲・未完了ステータスで検索 |
+| overdue_tasks | due_date昇順、tasks.id昇順 | 20件 | API-09-001：本人の担当者ID、completion=not_completed、project_scope=current、due_to=前日 |
+| due_soon_tasks | due_date昇順、tasks.id昇順 | 20件 | API-09-001：本人の担当者ID、completion=not_completed、project_scope=current、due_from=当日、due_to=7日後 |
 | review_requests | updated_at降順、tasks.id降順 | 20件 | API-10-002 |
 | recently_updated_assigned_tasks | updated_at降順、tasks.id降順 | 5件 | API-10-001 |
 
-- ダッシュボードの取得上限は初期表示用であり、incomplete_task_countの件数は切り捨てない。
+- ダッシュボードの取得上限は初期表示用であり、incomplete_task_count、overdue_task_count、due_soon_task_count、review_request_countの各総件数は切り捨てない。
+- 配列の長さが総件数より少ない場合は表示上限を超えた項目があることを表す。0件でも総件数0と空配列を返し、省略しない。
+- 期限超過・期限接近の全件検索は、API-01-005で取得した本人のuser_idをassignee_user_idに指定し、API-09-001のcompletion=not_completed・project_scope=current・期間条件で再現する。include_inactiveは省略（false）とする。
 - 上限は初期実装仕様であり、変更時はAPI契約変更として本書を改版する。
 
 - セッション管理と参照処理の境界：認証ミドルウェアは有効な認証済み操作時にsessions.last_activity_atを更新する（データ設計書4.7）。このセッション管理の更新は、業務データを取得する読み取り専用トランザクションと分離する。業務情報の参照処理ではprojects、tasks、members、comments、task_histories等を変更しない。
@@ -7590,11 +7607,11 @@
 5. 本人が担当またはレビュアーとして設定されたmembers.idを使用し、現在の所属members.is_active=TRUEのものだけを対象とする。
 6. 共通集計基準としてtasks.is_active=TRUEかつprojects.status IN ('draft','active')を適用する。完了・中止プロジェクトのタスクを現在業務対象としない。
 7. 同一要求内で今日の日付を一度確定する。比較はアプリケーション標準タイムゾーンにおけるローカル日付を使い、期限の比較を日時で行わない。
-8. incomplete_task_countは本人の担当タスクでtasks.status!='completed'を数える。
+8. incomplete_task_countは本人の担当タスクでtasks.status!='completed'を数える。overdue_task_countとdue_soon_task_countは、それぞれ期限条件に一致する未完了の担当タスクを取得上限なしで数える。review_request_countは本人がレビュアーかつtasks.status='review_requested'のタスクを取得上限なしで数える。
 9. overdue_tasksは本人の未完了担当タスクかつdue_date<今日、due_soon_tasksは未完了担当タスクかつ今日<=due_date<=今日+7日とする。期限昇順、同一期限ではtasks.id昇順でそれぞれ最大20件取得する。
 10. review_requestsは本人がレビュアーかつtasks.status='review_requested'のタスクに限定し、updated_at降順・同一日時ではtasks.id降順で最大20件取得する。
 11. recently_updated_assigned_tasksは本人の担当タスクをupdated_at DESC、tasks.id DESCで上位5件。現在業務対象ならtasks.status='completed'も含める。
-12. 配列は空のとき[]を返し、未完了件数は0を返す。全項目を同じ読取スナップショットから計算して返す。
+12. 3種類の期限・レビュー配列について件数上限より多い対象があっても、各総件数は切り捨てない。配列は空のとき[]、各件数は該当しなければ0とし、全項目を同じ読取スナップショットから計算して返す。
 13. レスポンスを生成する。
     - 外部公開UUIDと必要なユーザー表示用項目に整形する。
     - 内部ID、認証情報、閲覧不可レコードを除外する。
@@ -7615,6 +7632,8 @@
     - データ設計4.2・4.3・4.6・IDX-002〜004
     - API-10-001
     - API-10-002
+    - API-09-001
+    - API-01-005
 
 ### API-11-002 プロジェクトダッシュボード情報取得
 
