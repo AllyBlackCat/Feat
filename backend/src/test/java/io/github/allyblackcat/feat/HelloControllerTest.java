@@ -1,7 +1,8 @@
+
 package io.github.allyblackcat.feat;
 
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -15,10 +16,14 @@ class HelloControllerTest {
             .build();
 
     @Test
-    @DisplayName ("Hello Worldを返すこと")
-    void shouldReturnHelloWorld() throws Exception {
+    void shouldReturnHelloWorldAsJson() throws Exception {
         mockMvc.perform(get("/api/hello"))
                 .andExpect(status().isOk())
-                .andExpect(content().string("Hello, World!"));
+                .andExpect(content().contentTypeCompatibleWith(
+                        MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.message")
+                        .value("Hello, World!"))
+                .andExpect(jsonPath("$.application")
+                        .value("Feat"));
     }
 }
