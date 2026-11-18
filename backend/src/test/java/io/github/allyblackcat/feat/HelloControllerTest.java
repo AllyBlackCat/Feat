@@ -1,6 +1,7 @@
 
 package io.github.allyblackcat.feat;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -16,6 +17,7 @@ class HelloControllerTest {
             .build();
 
     @Test
+    @DisplayName("JSONでHello, World!を返すことを確認する")
     void shouldReturnHelloWorldAsJson() throws Exception {
         mockMvc.perform(get("/api/hello"))
                 .andExpect(status().isOk())
