@@ -1224,9 +1224,11 @@
 #### 4. リクエスト
 
 - パスパラメータ
+
 | 項目名 | データ型 | 必須 | 説明 |
 |---|---|---|---|
 | id | integer | ○ | 更新対象のユーザーID |
+
 - 入力制約
     - id：1以上の整数
 - クエリパラメータ
@@ -4574,11 +4576,12 @@
 - 関連API
     - API-03-002 プロジェクト詳細取得
     - API-05-002 タスク作成
-    - API-05-003 タスク基本情報変更
-    - API-05-004 担当者・レビュアー変更
+    - API-05-003 タスク情報変更
+    - API-05-004 タスク担当者変更
+    - API-05-005 タスクレビュアー変更
     - API-05-006 タスク無効化
-    - API-06 コメント管理
-    - API-07 タスク変更履歴取得
+    - API-07-001〜004 コメント管理
+    - API-08-001 タスク変更履歴取得
 
 ### API-05-002 タスク作成
 
@@ -5081,9 +5084,10 @@
     - API-04-001 プロジェクトメンバー一覧取得
     - API-04-003 プロジェクトメンバー除外
     - API-05-001 タスク詳細取得
-    - API-05-003 タスク基本情報変更
-    - API-05-004 担当者・レビュアー変更
-    - API-07 タスク変更履歴取得
+    - API-05-003 タスク情報変更
+    - API-05-004 タスク担当者変更
+    - API-05-005 タスクレビュアー変更
+    - API-08-001 タスク変更履歴取得
 
 ### API-05-003 タスク情報変更
 
@@ -5148,6 +5152,7 @@
 | priority | string | × | low/medium/high/urgent |
 | planned_start_date | string | × | YYYY-MM-DD形式の有効日付 |
 | due_date | string | × | YYYY-MM-DD形式の有効日付。変更後は開始予定日以降 |
+
 - 入力制約
     - 指定項目以外のキー、内部管理用ID、作成者、作成日時などの変更を受け付けない。
     - 更新後の値に対して業務上の整合性検証を行う。nullを許可するのは仕様表に明記した項目だけとする。
@@ -5283,6 +5288,7 @@
     - データ設計4.3・4.4・5.3
     - API-05-001
     - API-08-001
+
 ### API-05-004 タスク担当者変更
 
 #### 1. 概要
@@ -5339,6 +5345,7 @@
 | 項目名 | データ型 | 必須 | 説明 |
 |---|---|---|---|
 | assignee_user_id | integer/null | ○ | nullは解除。整数の場合は1以上、利用可能かつ対象プロジェクトの有効メンバー。 |
+
 - 入力制約
     - 指定項目以外のキー、内部管理用ID、作成者、作成日時などの変更を受け付けない。
     - 更新後の値に対して業務上の整合性検証を行う。nullを許可するのは仕様表に明記した項目だけとする。
@@ -5450,7 +5457,7 @@
 7. not_started/returnedでは担当者の設定・変更・解除を許可し、in_progress/review_requested/in_reviewでは別担当者への変更のみ許可（null解除不可）。completedでは変更不可とする。
 8. assignee_user_idが非nullならusers.idを照会し、users.is_available=TRUEを検証する。対象users行をロックし、members.project_id、members.user_id、members.is_active=TRUEを満たすmembers.idへ解決する。
 9. reviewer_member_idと新しいassignee_member_idの重複を拒否する。nullでは許可状態に限って担当者を解除する。
-10. tasks.assignee_member_idを更新しupdated_atを設定する。task_historiesへfield_name=assignee_member_id、old_value/new_value（変更前後のユーザーIDを文字列化、未設定はNULL）を記録する。
+10. tasks.assignee_member_idを更新しupdated_atを設定する。task_historiesへfield_name=assignee_user_id、old_value/new_value（変更前後のusers.idを文字列化、未設定はNULL）。DB更新対象のtasks.assignee_member_idとは区別し、履歴では論理的な担当者ユーザーIDを記録するを記録する。
 11. 同一担当者への指定は更新と履歴登録を省略して現在値を返す。
 12. 更新後の整合性を確認する。
     - 処理の全成功を確認してコミットする。途中失敗はすべてロールバックする。
@@ -5474,6 +5481,7 @@
     - API-05-001
     - API-05-005
     - API-08-001
+
 ### API-05-005 タスクレビュアー変更
 
 #### 1. 概要
@@ -5530,6 +5538,7 @@
 | 項目名 | データ型 | 必須 | 説明 |
 |---|---|---|---|
 | reviewer_user_id | integer/null | ○ | nullは解除。非nullの場合は1以上の整数で、対象プロジェクトの有効・利用可能な所属メンバー |
+
 - 入力制約
     - 指定項目以外のキー、内部管理用ID、作成者、作成日時などの変更を受け付けない。
     - 更新後の値に対して業務上の整合性検証を行う。nullを許可するのは仕様表に明記した項目だけとする。
@@ -5640,7 +5649,7 @@
 6. not_started/in_progress/returnedでは設定・変更・解除を認める。review_requested/in_reviewでは別レビュアーへの変更のみ認め、null解除を拒否する。completedは変更不可。
 7. 指定レビュアーが非nullの場合はusers.is_available=TRUEをロック下で確認し、対象プロジェクトに所属するmembers.is_active=TRUEのレコードへ解決する。
 8. 変更後reviewer_member_idがassignee_member_idと一致する場合は拒否する。
-9. reviewer_member_idを変更し、updated_atを更新する。変更した場合task_historiesにfield_name=reviewer_member_idと変更前後のユーザーIDを記録する。
+9. reviewer_member_idを変更し、updated_atを更新する。変更した場合task_historiesにfield_name=reviewer_user_id、old_value/new_value（変更前後のusers.idを文字列化、未設定はNULL）として記録する。DB更新対象のtasks.reviewer_member_idとは区別し、履歴では論理的なレビュアーユーザーIDを記録する。
 10. 元のtasks.status=in_reviewかつ実際にレビュアーが交代した場合、statusをreview_requestedに変更し、状態変更履歴も別レコードに記録する。review_requestedのままでの交代時は状態を変えない。
 11. 同一レビュアーの指定では更新・履歴登録・状態変更を行わない。
 12. 更新後の整合性を確認する。
@@ -5665,6 +5674,7 @@
     - API-05-004
     - API-06-001
     - API-08-001
+
 ### API-05-006 タスク無効化
 
 #### 1. 概要
@@ -5796,6 +5806,7 @@
     - API-05-001
     - API-08-001
     - API-09-001
+
 ### API-06-001 タスク状態遷移
 
 #### 1. 概要
@@ -5855,6 +5866,7 @@
 |---|---|---|---|
 | status | string | ○ | in_progress/review_requested/in_review/completed/returnedのいずれか。現在状態との組合せを検証 |
 | reason | string | △ | in_review→returned（差し戻し）時は必須。trim後1文字以上、改行可、不要な制御文字不可。他の遷移では指定不可 |
+
 - 入力制約
     - 指定項目以外のキー、内部管理用ID、作成者、作成日時などの変更を受け付けない。
     - 更新後の値に対して業務上の整合性検証を行う。nullを許可するのは仕様表に明記した項目だけとする。
@@ -5950,6 +5962,24 @@
 
 #### 7. 処理仕様
 
+**状態遷移の許可条件一覧**
+
+| 現在状態 | 遷移先 | 操作 | 実行権限 | 前提条件 | 変更履歴 |
+|---|---|---|---|---|---|
+| not_started | in_progress | 作業開始 | 担当者またはシステム管理者 | 担当者設定済み・有効所属・利用可能 | status変更 |
+| in_progress | review_requested | レビュー依頼 | 担当者またはシステム管理者 | レビュアー設定済み・有効所属・利用可能 | status変更・レビュー依頼イベント |
+| review_requested | in_review | レビュー開始 | レビュアーまたはシステム管理者 | レビュアーの有効所属 | status変更 |
+| in_review | completed | 承認 | レビュアーまたはシステム管理者 | レビュアーの有効所属 | status変更・承認イベント |
+| in_review | returned | 差し戻し | レビュアーまたはシステム管理者 | レビュアーの有効所属、理由必須 | status変更・差し戻しイベント（reason） |
+| returned | in_progress | 再対応 | 担当者またはシステム管理者 | 担当者設定済み・有効所属・利用可能 | status変更 |
+| completed | in_progress | 再オープン | プロジェクト管理者またはシステム管理者 | 有効なプロジェクト管理者権限 | status変更・再オープンイベント |
+
+- すべての状態遷移で、対象プロジェクトがactive、タスクがis_active=TRUEであることを必須とする。
+- 担当者・レビュアーによる操作の権限は、現在のtasks参照先に対してmembers.is_active=TRUEを照合して判定する。システム管理者にも状態・担当/レビュー設定の整合性条件を適用する。
+- プロジェクト管理者であるだけでは、担当者・レビュアー専用遷移の操作権限を付与しない。
+- 現在状態と同じ状態への再指定、または表にない遷移はERROR-05012で拒否する。
+- 項目変更履歴は1項目につき1レコード、イベント履歴は別レコードとし、タスク更新と同一トランザクションで登録する。
+
 1. ログインセッションを検証する。
     - sessionsの有効性とusers.is_availableを確認し、ログインユーザーのIDおよびusers.administratorを取得する。
     - 未認証の場合はERROR-01009を返す。
@@ -5963,7 +5993,7 @@
     - tasks.public_idからtasks.project_idを得て、projects.statusおよびmembersの有効所属を確認する。
     - 対象を閲覧できない場合はERROR-05003を返し、操作条件の不一致では所定の403/409を返す。
 5. 対象projects・tasksをロックし、プロジェクトがactive、タスクがis_active=TRUEであることを検証する。draftでは作業状態への遷移を行わない。
-6. 許可遷移を固定テーブルで判定する：not_started→in_progress（作業開始）、in_progress→review_requested（レビュー依頼）、review_requested→in_review（レビュー開始）、in_review→completed（承認）、in_review→returned（差し戻し）、returned→in_progress（再対応）、completed→in_progress（再オープン）。
+6. 状態遷移の許可条件一覧と現在状態を照合して、定義外の遷移を拒否する。
 7. 各遷移の操作権限を検証する。作業開始・レビュー依頼・再対応は現在担当者またはシステム管理者、レビュー開始・承認・差し戻しは現在レビュアーまたはシステム管理者、再オープンは対象プロジェクト管理者またはシステム管理者に限定する。
 8. in_progressへの遷移は有効な担当者を、review_requestedへの遷移は有効なレビュアーを必要とする。担当者/レビュアーは同一ユーザーにできず、該当するmembers.is_activeとusers.is_availableを検証する。
 9. 差し戻しでは空白除去後のreasonが空でないことを検証する。他の遷移ではreason指定を認めない。
@@ -5992,6 +6022,7 @@
     - データ設計4.3・4.4・5.3
     - API-05-001
     - API-08-001
+
 ### API-07-001 コメント一覧取得
 
 #### 1. 概要
@@ -6045,6 +6076,7 @@
 |---|---|---|---|
 | page | integer | × | 1以上。省略時1 |
 | size | integer | × | 1以上100以下。省略時20 |
+
 - リクエストヘッダー
     - セッションCookie
 
@@ -6052,7 +6084,7 @@
 - リクエストボディ
     - なし
 - 入力制約
-    - 未定義のパラメータ・JSONフィールドは受理しない。未入力とnullは区別して検証する。
+    - 未定義のクエリパラメータは受理しない。GETのリクエストボディは受け付けない。
     - ページ番号は1始まりとし、ページ外は空配列を返す。全件数と総ページ数はフィルタ適用後の値とする。
     - public_idはUUID形式で検証する。
 
@@ -6085,6 +6117,7 @@
 | pagination.size | integer | ○ | ページ取得件数 |
 | pagination.total_elements | integer | ○ | 削除済みを含む全件数 |
 | pagination.total_pages | integer | ○ | 総ページ数。0件の場合0 |
+
 - レスポンス例
 
 ```json
@@ -6148,6 +6181,8 @@
 
 #### 7. 処理仕様
 
+- セッション管理と参照処理の境界：認証ミドルウェアは有効な認証済み操作時にsessions.last_activity_atを更新する（データ設計書4.7）。このセッション管理の更新は、業務データを取得する読み取り専用トランザクションと分離する。業務情報の参照処理ではprojects、tasks、members、comments、task_histories等を変更しない。
+
 1. ログインセッションを検証する。
     - Cookieを検証してsessionsとusersを参照し、有効なログイン状態を確認する。
     - users.idとusers.administratorを取得する。無効セッションの場合はERROR-01009を返す。
@@ -6186,6 +6221,7 @@
     - BR-066
     - データ設計4.1〜4.6
     - API-07-002〜004
+
 ### API-07-002 コメント投稿
 
 #### 1. 概要
@@ -6243,6 +6279,7 @@
 | 項目名 | データ型 | 必須 | 入力制約 |
 |---|---|---|---|
 | content | string | ○ | 前後空白除去後1〜5000文字。改行可。文章入力に不要な制御文字不可。空白のみ不可 |
+
 - 入力制約
     - 未定義のパラメータ・JSONフィールドは受理しない。未入力とnullは区別して検証する。
     - ページング・検索・ソートの指定はなし。
@@ -6278,6 +6315,7 @@
 | updated_at | string | ○ | 作成時はcreated_atと同じ |
 | edited_at | null | ○ | null固定 |
 | deleted_at | null | ○ | null固定 |
+
 - レスポンス例
 
 ```json
@@ -6335,7 +6373,7 @@
 7. 利用者のシステム管理者権限または対象プロジェクトの有効なmembers所属を検証する。
 8. contentの前後空白を除去し、文字数・制御文字の入力規則を適用する。
 9. commentsへtask_id=tasks.id、author_id=ログインユーザーID、content、is_deleted=FALSE、created_at=現在日時、updated_at=現在日時、edited_at=NULL、deleted_at=NULLを登録する。
-10. SERIALIZABLEでプロジェクト状態変更やタスク無効化との競合を制御し、コミット後に201とLocationヘッダーを返す。
+10. SERIALIZABLEでプロジェクト状態変更やタスク無効化との競合を制御し、コミット後に201 Createdと作成したコメントのidを含むJSONを返す。個別コメント取得APIは未定義のためLocationヘッダーは付与しない。
 11. 処理結果を確定する。
     - 更新と関連する日時を同一トランザクションでコミットする。途中失敗時はロールバックし、40001/40P01は再検証を含む上限付き再試行を行う。
 12. 正常終了する。
@@ -6357,6 +6395,7 @@
     - データ設計4.3・4.5・5.3
     - API-07-001
     - API-07-003〜004
+
 ### API-07-003 コメント編集
 
 #### 1. 概要
@@ -6416,6 +6455,7 @@
 | 項目名 | データ型 | 必須 | 入力制約 |
 |---|---|---|---|
 | content | string | ○ | 前後空白除去後1〜5000文字。改行可。不要な制御文字不可。空白のみ不可 |
+
 - 入力制約
     - 未定義のパラメータ・JSONフィールドは受理しない。未入力とnullは区別して検証する。
     - ページング・検索・ソートの指定はなし。
@@ -6449,6 +6489,7 @@
 | updated_at | string | ○ | 編集日時 |
 | edited_at | string | ○ | 最終編集日時 |
 | deleted_at | null | ○ | null |
+
 - レスポンス例
 
 ```json
@@ -6532,6 +6573,7 @@
     - データ設計4.5・5.3
     - API-07-001〜002
     - API-07-004
+
 ### API-07-004 コメント削除
 
 #### 1. 概要
@@ -6661,6 +6703,7 @@
     - 権限マトリクスAUTH-010
     - データ設計4.5・5.3
     - API-07-001〜003
+
 ### API-08-001 タスク変更履歴取得
 
 #### 1. 概要
@@ -6713,6 +6756,7 @@
 | page | integer | × | 1以上、省略時1 |
 | size | integer | × | 1〜100、省略時20 |
 | order | string | × | asc/desc。省略時desc |
+
 - リクエストヘッダー
     - セッションCookie
 
@@ -6720,7 +6764,7 @@
 - リクエストボディ
     - なし
 - 入力制約
-    - 未定義のパラメータ・JSONフィールドは受理しない。未入力とnullは区別して検証する。
+    - 未定義のクエリパラメータは受理しない。GETのリクエストボディは受け付けない。
     - ページ番号は1始まりとし、ページ外は空配列を返す。全件数と総ページ数はフィルタ適用後の値とする。
     - public_idはUUID形式で検証する。
 
@@ -6752,6 +6796,7 @@
 | pagination.size | integer | ○ | 件数 |
 | pagination.total_elements | integer | ○ | 総履歴件数 |
 | pagination.total_pages | integer | ○ | 総ページ数 |
+
 - レスポンス例
 
 ```json
@@ -6813,6 +6858,8 @@
 
 #### 7. 処理仕様
 
+- セッション管理と参照処理の境界：認証ミドルウェアは有効な認証済み操作時にsessions.last_activity_atを更新する（データ設計書4.7）。このセッション管理の更新は、業務データを取得する読み取り専用トランザクションと分離する。業務情報の参照処理ではprojects、tasks、members、comments、task_histories等を変更しない。
+
 1. ログインセッションを検証する。
     - Cookieを検証してsessionsとusersを参照し、有効なログイン状態を確認する。
     - users.idとusers.administratorを取得する。無効セッションの場合はERROR-01009を返す。
@@ -6849,6 +6896,7 @@
     - データ設計4.4・6.3 IDX-005
     - API-05-001
     - API-06-001
+
 ### API-09-001 タスク検索・絞り込み
 
 #### 1. 概要
@@ -6907,13 +6955,14 @@
 | size | integer | × | 1〜100。省略時20 |
 | sort_by | string | × | created_at / updated_at / due_date / priority。省略時updated_at |
 | order | string | × | asc / desc。省略時desc |
+
 - リクエストヘッダー
     - セッションCookie
 - リクエストボディ
     - なし
 - 入力制約
     - 未定義のクエリパラメータは受理しない。
-    - 数値は整数、日付はYYYY-MM-DDの実在日付、列挙値は定義されたものに限る。
+    - 本APIの項目表に記載された数値・日付・列挙値の制約を適用する。ページと件数は整数、並び順は定義された値に限定する。
     - sort_byはホワイトリストに従いSQL列へ変換する。ソートキーや検索条件をSQLに直接連結しない。
 - リクエスト例
     - GET /api/tasks?keyword=login&status=in_progress&page=1&size=20
@@ -6994,6 +7043,8 @@
 
 #### 7. 処理仕様
 
+- セッション管理と参照処理の境界：認証ミドルウェアは有効な認証済み操作時にsessions.last_activity_atを更新する（データ設計書4.7）。このセッション管理の更新は、業務データを取得する読み取り専用トランザクションと分離する。業務情報の参照処理ではprojects、tasks、members、comments、task_histories等を変更しない。
+
 1. ログインセッションを検証する。
     - sessionsの失効・有効期限・無操作期限とusers.is_availableを確認する。
     - ユーザーID、users.administratorを取得する。無効セッションの場合ERROR-01009を返す。
@@ -7016,7 +7067,7 @@
     - 外部公開UUIDと必要なユーザー表示用項目に整形する。
     - 内部ID、認証情報、閲覧不可レコードを除外する。
 13. 正常終了する。
-    - 200 OKとJSONを返す。業務データへのINSERT・UPDATE・DELETEは行わない。
+    - 200 OKとJSONを返す。業務データへのINSERT・UPDATE・DELETEは行わない（セッション最終操作日時の更新とは別処理）。
 
 #### 8. 関連仕様
 
@@ -7033,6 +7084,7 @@
     - API-03-002
     - API-05-001
     - API-10-001〜002
+
 ### API-10-001 担当タスク一覧取得
 
 #### 1. 概要
@@ -7082,13 +7134,14 @@
 | size | integer | × | 1〜100。省略時20 |
 | sort_by | string | × | created_at / updated_at / due_date / priority。省略時updated_at |
 | order | string | × | asc / desc。省略時desc |
+
 - リクエストヘッダー
     - セッションCookie
 - リクエストボディ
     - なし
 - 入力制約
     - 未定義のクエリパラメータは受理しない。
-    - 数値は整数、日付はYYYY-MM-DDの実在日付、列挙値は定義されたものに限る。
+    - 本APIの項目表に記載された数値・日付・列挙値の制約を適用する。ページと件数は整数、並び順は定義された値に限定する。
     - sort_byはホワイトリストに従いSQL列へ変換する。ソートキーや検索条件をSQLに直接連結しない。
 - リクエスト例
     - GET /api/me/tasks/assigned?page=1&size=20&sort_by=updated_at&order=desc
@@ -7167,6 +7220,8 @@
 
 #### 7. 処理仕様
 
+- セッション管理と参照処理の境界：認証ミドルウェアは有効な認証済み操作時にsessions.last_activity_atを更新する（データ設計書4.7）。このセッション管理の更新は、業務データを取得する読み取り専用トランザクションと分離する。業務情報の参照処理ではprojects、tasks、members、comments、task_histories等を変更しない。
+
 1. ログインセッションを検証する。
     - sessionsの失効・有効期限・無操作期限とusers.is_availableを確認する。
     - ユーザーID、users.administratorを取得する。無効セッションの場合ERROR-01009を返す。
@@ -7188,7 +7243,7 @@
     - 外部公開UUIDと必要なユーザー表示用項目に整形する。
     - 内部ID、認証情報、閲覧不可レコードを除外する。
 12. 正常終了する。
-    - 200 OKとJSONを返す。業務データへのINSERT・UPDATE・DELETEは行わない。
+    - 200 OKとJSONを返す。業務データへのINSERT・UPDATE・DELETEは行わない（セッション最終操作日時の更新とは別処理）。
 
 #### 8. 関連仕様
 
@@ -7204,6 +7259,7 @@
     - API-05-001
     - API-09-001
     - API-11-001
+
 ### API-10-002 レビュー対象タスク一覧取得
 
 #### 1. 概要
@@ -7253,13 +7309,14 @@
 | size | integer | × | 1〜100。省略時20 |
 | sort_by | string | × | created_at / updated_at / due_date / priority。省略時updated_at |
 | order | string | × | asc / desc。省略時desc |
+
 - リクエストヘッダー
     - セッションCookie
 - リクエストボディ
     - なし
 - 入力制約
     - 未定義のクエリパラメータは受理しない。
-    - 数値は整数、日付はYYYY-MM-DDの実在日付、列挙値は定義されたものに限る。
+    - 本APIの項目表に記載された数値・日付・列挙値の制約を適用する。ページと件数は整数、並び順は定義された値に限定する。
     - sort_byはホワイトリストに従いSQL列へ変換する。ソートキーや検索条件をSQLに直接連結しない。
 - リクエスト例
     - GET /api/me/tasks/reviews?page=1&size=20&sort_by=updated_at&order=desc
@@ -7338,6 +7395,8 @@
 
 #### 7. 処理仕様
 
+- セッション管理と参照処理の境界：認証ミドルウェアは有効な認証済み操作時にsessions.last_activity_atを更新する（データ設計書4.7）。このセッション管理の更新は、業務データを取得する読み取り専用トランザクションと分離する。業務情報の参照処理ではprojects、tasks、members、comments、task_histories等を変更しない。
+
 1. ログインセッションを検証する。
     - sessionsの失効・有効期限・無操作期限とusers.is_availableを確認する。
     - ユーザーID、users.administratorを取得する。無効セッションの場合ERROR-01009を返す。
@@ -7359,7 +7418,7 @@
     - 外部公開UUIDと必要なユーザー表示用項目に整形する。
     - 内部ID、認証情報、閲覧不可レコードを除外する。
 12. 正常終了する。
-    - 200 OKとJSONを返す。業務データへのINSERT・UPDATE・DELETEは行わない。
+    - 200 OKとJSONを返す。業務データへのINSERT・UPDATE・DELETEは行わない（セッション最終操作日時の更新とは別処理）。
 
 #### 8. 関連仕様
 
@@ -7376,6 +7435,7 @@
     - API-05-001
     - API-09-001
     - API-11-001
+
 ### API-11-001 個人ダッシュボード情報取得
 
 #### 1. 概要
@@ -7440,9 +7500,9 @@
 | 項目名 | データ型 | 必須 | 説明 |
 |---|---|---|---|
 | incomplete_task_count | integer | ○ | 本人が担当する現在業務対象タスクのうちstatus≠completedの件数 |
-| overdue_tasks | array | ○ | 本人の未完了担当タスクで期限が今日より前のもの |
-| due_soon_tasks | array | ○ | 本人の未完了担当タスクで期限が今日〜7日後（両端含む）のもの |
-| review_requests | array | ○ | 本人がレビュアーでstatus=review_requestedのタスク |
+| overdue_tasks | array | ○ | 本人の未完了担当タスクで期限が今日より前のもの。期限昇順、最大20件 |
+| due_soon_tasks | array | ○ | 本人の未完了担当タスクで期限が今日〜7日後（両端含む）のもの。期限昇順、最大20件 |
+| review_requests | array | ○ | 本人がレビュアーでstatus=review_requestedのタスク。更新日時降順、最大20件 |
 | recently_updated_assigned_tasks | array | ○ | 本人の担当タスクをupdated_at降順で上位5件 |
 | 各配列の要素.public_id | string | ○ | タスク公開UUID |
 | 各配列の要素.project_public_id | string | ○ | プロジェクト公開UUID |
@@ -7502,11 +7562,25 @@
 
 #### 7. 処理仕様
 
+**配列の取得件数・並び順**
+
+| レスポンス配列 | 並び順 | 取得上限 | 全件確認先 |
+|---|---|---|---|
+| overdue_tasks | due_date昇順、tasks.id昇順 | 20件 | API-09-001：期限上限・未完了ステータスで検索 |
+| due_soon_tasks | due_date昇順、tasks.id昇順 | 20件 | API-09-001：期限範囲・未完了ステータスで検索 |
+| review_requests | updated_at降順、tasks.id降順 | 20件 | API-10-002 |
+| recently_updated_assigned_tasks | updated_at降順、tasks.id降順 | 5件 | API-10-001 |
+
+- ダッシュボードの取得上限は初期表示用であり、incomplete_task_countの件数は切り捨てない。
+- 上限は初期実装仕様であり、変更時はAPI契約変更として本書を改版する。
+
+- セッション管理と参照処理の境界：認証ミドルウェアは有効な認証済み操作時にsessions.last_activity_atを更新する（データ設計書4.7）。このセッション管理の更新は、業務データを取得する読み取り専用トランザクションと分離する。業務情報の参照処理ではprojects、tasks、members、comments、task_histories等を変更しない。
+
 1. ログインセッションを検証する。
     - sessionsの失効・有効期限・無操作期限とusers.is_availableを確認する。
     - ユーザーID、users.administratorを取得する。無効セッションの場合ERROR-01009を返す。
 2. リクエストの基本検証を行う。
-    - クエリパラメータの型・日付・列挙値を確認し、不正な入力を拒否する。
+    - クエリパラメータを定義していないため、指定された場合は不正な入力として拒否する。
     - 利用者の認証状態と検索・集計条件はサーバー側で決定する。
 3. 閲覧可能なデータ集合を確定する。
     - users.administratorと、現在所属するmembers.is_active=TRUEの関係を利用する。
@@ -7517,15 +7591,15 @@
 6. 共通集計基準としてtasks.is_active=TRUEかつprojects.status IN ('draft','active')を適用する。完了・中止プロジェクトのタスクを現在業務対象としない。
 7. 同一要求内で今日の日付を一度確定する。比較はアプリケーション標準タイムゾーンにおけるローカル日付を使い、期限の比較を日時で行わない。
 8. incomplete_task_countは本人の担当タスクでtasks.status!='completed'を数える。
-9. overdue_tasksは本人の未完了担当タスクかつdue_date<今日、due_soon_tasksは未完了担当タスクかつ今日<=due_date<=今日+7日とする。
-10. review_requestsは本人がレビュアーかつtasks.status='review_requested'のタスクに限定する。
+9. overdue_tasksは本人の未完了担当タスクかつdue_date<今日、due_soon_tasksは未完了担当タスクかつ今日<=due_date<=今日+7日とする。期限昇順、同一期限ではtasks.id昇順でそれぞれ最大20件取得する。
+10. review_requestsは本人がレビュアーかつtasks.status='review_requested'のタスクに限定し、updated_at降順・同一日時ではtasks.id降順で最大20件取得する。
 11. recently_updated_assigned_tasksは本人の担当タスクをupdated_at DESC、tasks.id DESCで上位5件。現在業務対象ならtasks.status='completed'も含める。
 12. 配列は空のとき[]を返し、未完了件数は0を返す。全項目を同じ読取スナップショットから計算して返す。
 13. レスポンスを生成する。
     - 外部公開UUIDと必要なユーザー表示用項目に整形する。
     - 内部ID、認証情報、閲覧不可レコードを除外する。
 14. 正常終了する。
-    - 200 OKとJSONを返す。業務データへのINSERT・UPDATE・DELETEは行わない。
+    - 200 OKとJSONを返す。業務データへのINSERT・UPDATE・DELETEは行わない（セッション最終操作日時の更新とは別処理）。
 
 #### 8. 関連仕様
 
@@ -7541,6 +7615,7 @@
     - データ設計4.2・4.3・4.6・IDX-002〜004
     - API-10-001
     - API-10-002
+
 ### API-11-002 プロジェクトダッシュボード情報取得
 
 #### 1. 概要
@@ -7586,6 +7661,7 @@
 | 項目名 | データ型 | 必須 | 説明 |
 |---|---|---|---|
 | public_id | string | ○ | 対象プロジェクトの公開UUID。UUID形式が必須。 |
+
 - クエリパラメータ
     - なし
 - リクエストヘッダー
@@ -7645,7 +7721,7 @@
 
 - 複数の集計値は同じ読み取り時点のデータを用いる。
 - 内部ID（projects.id、tasks.id、members.id）、セッション情報、パスワード情報を返さない。
-- 0件の場合は空配列を返し、件数は0とする。日時はISO 8601形式、日付はYYYY-MM-DD形式。
+- タスクが0件の場合、集計件数はすべて0、status_countsの6種類のキーもすべて0を返す。本APIに配列・日時・日付のレスポンス項目はない。
 
 #### 6. エラー
 
@@ -7664,11 +7740,13 @@
 
 #### 7. 処理仕様
 
+- セッション管理と参照処理の境界：認証ミドルウェアは有効な認証済み操作時にsessions.last_activity_atを更新する（データ設計書4.7）。このセッション管理の更新は、業務データを取得する読み取り専用トランザクションと分離する。業務情報の参照処理ではprojects、tasks、members、comments、task_histories等を変更しない。
+
 1. ログインセッションを検証する。
     - sessionsの失効・有効期限・無操作期限とusers.is_availableを確認する。
     - ユーザーID、users.administratorを取得する。無効セッションの場合ERROR-01009を返す。
 2. リクエストの基本検証を行う。
-    - public_idのUUID形式を確認し、不正な入力を拒否する。
+    - 対象プロジェクトのpublic_idがUUID形式であることを検証し、不正な入力を拒否する。
     - 利用者の認証状態と検索・集計条件はサーバー側で決定する。
 3. 閲覧可能なデータ集合を確定する。
     - users.administratorと、現在所属するmembers.is_active=TRUEの関係を利用する。
@@ -7687,7 +7765,7 @@
     - 外部公開UUIDと必要なユーザー表示用項目に整形する。
     - 内部ID、認証情報、閲覧不可レコードを除外する。
 14. 正常終了する。
-    - 200 OKとJSONを返す。業務データへのINSERT・UPDATE・DELETEは行わない。
+    - 200 OKとJSONを返す。業務データへのINSERT・UPDATE・DELETEは行わない（セッション最終操作日時の更新とは別処理）。
 
 #### 8. 関連仕様
 
