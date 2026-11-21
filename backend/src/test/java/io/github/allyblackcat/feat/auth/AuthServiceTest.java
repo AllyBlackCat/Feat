@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Optional;
+import java.time.OffsetDateTime;
 
 import org.mockito.Mock;
 import org.mockito.InjectMocks;
@@ -83,6 +84,51 @@ public class AuthServiceTest {
         assertDoesNotThrow(
             () -> authService.signin("test@example.com", "correct-password")
         );
-
     }
+
+    @Test 
+    @DisplayName("利用停止中のユーザーは認証に失敗すること")
+    void signinUnavailableUser() {
+        User user = mock(User.class);
+
+        when(userRepository.findByMailAddress("test@example.com"))
+            .thenReturn(Optional.of(user));
+        
+        when(user.passwordHash()).thenReturn("stored-hash");
+
+        when(passwordEncoder.matches("password", "stored-hash"))
+            .thenReturn(true);
+
+        when(user.available()).thenReturn(false);
+
+        assertThrows(
+            AuthenticationFailedException.class, 
+            () -> authService.signin("test@example.com", "password")
+        );
+    }
+
+    @Test 
+    @DisplayName("ロック中のユーザーは認証に失敗すること")
+    void signinLockedUser() {
+        User user = mock(User.class);
+
+        when(userRepository.findByMailAddress("test@example.com"))
+            .thenReturn(Optional.of(user));
+
+        when(user.passwordHash()).thenReturn("stored-hash");
+
+        when(passwordEncoder.matches("password", "stored-hash"))
+            .thenReturn(true);
+        
+        when(user.available()).thenReturn(true);
+
+        when(user.lockedAt())
+            .thenReturn(OffsetDateTime.now());
+
+        assertThrows(
+            AuthenticationFailedException.class,
+            () -> authService.signin("test@example.com", "password")
+        );
+    }
+
 }
