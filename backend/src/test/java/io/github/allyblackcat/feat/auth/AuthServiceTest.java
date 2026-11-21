@@ -78,8 +78,11 @@ public class AuthServiceTest {
         when(passwordEncoder.matches("correct-password", "stored-hash"))
             .thenReturn(true);
 
+        when(user.available()).thenReturn(true);
+
         assertDoesNotThrow(
             () -> authService.signin("test@example.com", "correct-password")
         );
+
     }
 }
