@@ -1,5 +1,7 @@
 package io.github.allyblackcat.feat.user;
 
+import java.util.Optional;
+
 import org.springframework.stereotype.Repository;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -10,4 +12,9 @@ public class UserRepository {
     public UserRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
+
+    public Optional<User> findByMailAddress(String mailAddress) {
+        return Optional.empty();
+    }
+
 }
