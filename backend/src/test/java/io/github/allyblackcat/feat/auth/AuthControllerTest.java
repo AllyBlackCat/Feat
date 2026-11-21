@@ -9,10 +9,12 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import io.github.allyblackcat.feat.common.exception.GlobalExceptionHandler;
 public class AuthControllerTest {
 
     private final MockMvc mockMvc = MockMvcBuilders
             .standaloneSetup(new AuthController())
+            .setControllerAdvice(new GlobalExceptionHandler())
             .build();
 
     // 正常系
