@@ -15,6 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -59,6 +60,8 @@ public class AuthServiceTest {
         when(passwordEncoder.matches("wrong-password", "stored-hash"))
             .thenReturn(false);
 
+        when(user.available()).thenReturn(true);
+
         assertThrows(
             AuthenticationFailedException.class,
             () -> authService.signin("test@example.com", "wrong-password")
@@ -94,17 +97,14 @@ public class AuthServiceTest {
         when(userRepository.findByMailAddress("test@example.com"))
             .thenReturn(Optional.of(user));
         
-        when(user.passwordHash()).thenReturn("stored-hash");
-
-        when(passwordEncoder.matches("password", "stored-hash"))
-            .thenReturn(true);
-
         when(user.available()).thenReturn(false);
 
         assertThrows(
             AuthenticationFailedException.class, 
             () -> authService.signin("test@example.com", "password")
         );
+
+        verifyNoInteractions(passwordEncoder);
     }
 
     @Test 
@@ -114,11 +114,6 @@ public class AuthServiceTest {
 
         when(userRepository.findByMailAddress("test@example.com"))
             .thenReturn(Optional.of(user));
-
-        when(user.passwordHash()).thenReturn("stored-hash");
-
-        when(passwordEncoder.matches("password", "stored-hash"))
-            .thenReturn(true);
         
         when(user.available()).thenReturn(true);
 
@@ -129,6 +124,7 @@ public class AuthServiceTest {
             AuthenticationFailedException.class,
             () -> authService.signin("test@example.com", "password")
         );
-    }
 
+        verifyNoInteractions(passwordEncoder);
+    }
 }
