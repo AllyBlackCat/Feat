@@ -20,7 +20,21 @@ public class UserRepository {
     public Optional<User> findByMailAddress(String mailAddress) {
         
         String sql = """
-            SELECT *
+            SELECT 
+                id, 
+                mail_address, 
+                name, 
+                screen_name, 
+                department,
+                administrator,
+                is_available,
+                password_hash,
+                must_change_password,
+                failed_login_count,
+                last_failed_login_at,
+                locked_at,
+                created_at,
+                updated_at
             FROM users
             WHERE mail_address = ?
             """;
