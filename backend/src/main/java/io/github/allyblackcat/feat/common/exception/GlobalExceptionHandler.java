@@ -13,9 +13,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(
             MethodArgumentNotValidException ex) {
+        
+        ErrorResponse error = new ErrorResponse(
+            "ERROR-01002",
+            "入力内容に不備があります。"
+        );
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .build();
+                .body(error);
     }
 }

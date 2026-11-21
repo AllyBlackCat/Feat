@@ -45,7 +45,9 @@ public class AuthControllerTest {
         mockMvc.perform(post("/api/auth/signin")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("ERROR-01002"))
+                .andExpect(jsonPath("$.message").value("入力内容に不備があります。"));
     }
 
     @Test 
@@ -60,7 +62,9 @@ public class AuthControllerTest {
         mockMvc.perform(post("/api/auth/signin")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("ERROR-01002"))
+                .andExpect(jsonPath("$.message").value("入力内容に不備があります。"));
     }
 
     @Test 
@@ -76,7 +80,9 @@ public class AuthControllerTest {
         mockMvc.perform(post("/api/auth/signin")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("ERROR-01002"))
+                .andExpect(jsonPath("$.message").value("入力内容に不備があります。"));
     }
 
     @Test
@@ -91,6 +97,8 @@ public class AuthControllerTest {
         mockMvc.perform(post("/api/auth/signin")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("ERROR-01002"))
+                .andExpect(jsonPath("$.message").value("入力内容に不備があります。"));
     }
 }
