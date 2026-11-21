@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.util.Optional;
 import java.time.OffsetDateTime;
@@ -87,6 +88,13 @@ public class AuthServiceTest {
         assertDoesNotThrow(
             () -> authService.signin("test@example.com", "correct-password")
         );
+
+        User result = authService.signin(
+            "test@example.com",
+            "correct-password"
+        );
+
+        assertSame(user, result);
     }
 
     @Test 
