@@ -7,6 +7,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import io.github.allyblackcat.feat.auth.AuthenticationFailedException;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -23,4 +25,19 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.BAD_REQUEST)
                 .body(error);
     }
+
+    @ExceptionHandler(AuthenticationFailedException.class)
+    public ResponseEntity<ErrorResponse> handleAuthenticationFailed(
+            AuthenticationFailedException ex) {
+
+        ErrorResponse error = new ErrorResponse(
+            "ERROR-01001",
+            "認証に失敗しました。"
+        );
+
+        return ResponseEntity
+            .status(HttpStatus.UNAUTHORIZED)
+            .body(error);
+    }
+
 }
