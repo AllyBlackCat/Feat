@@ -8,12 +8,14 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import static org.mockito.Mockito.mock;
+
 import io.github.allyblackcat.feat.common.exception.GlobalExceptionHandler;
 
 public class AuthControllerTest {
 
     private final MockMvc mockMvc = MockMvcBuilders
-            .standaloneSetup(new AuthController())
+            .standaloneSetup(new AuthController(mock(AuthService.class)))
             .setControllerAdvice(new GlobalExceptionHandler())
             .build();
 

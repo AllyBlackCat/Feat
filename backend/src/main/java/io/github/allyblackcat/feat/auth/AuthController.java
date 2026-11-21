@@ -8,6 +8,13 @@ import jakarta.validation.Valid;
 
 @RestController
 public class AuthController {
+
+    private final AuthService authService;
+
+    public AuthController(AuthService authService) {
+        this.authService = authService;
+    }
+
     @PostMapping("/api/auth/signin")
     public void signin(@Valid @RequestBody SigninRequest request) {
     }
