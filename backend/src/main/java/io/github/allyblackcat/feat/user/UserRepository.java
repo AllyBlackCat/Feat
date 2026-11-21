@@ -14,6 +14,13 @@ public class UserRepository {
     }
 
     public Optional<User> findByMailAddress(String mailAddress) {
+        
+        String sql = """
+            SELECT *
+            FROM users
+            WHERE mail_address = ?
+            """;
+        
         return Optional.empty();
     }
 
