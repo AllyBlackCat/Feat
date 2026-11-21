@@ -25,7 +25,7 @@ public class AuthService {
         return userRepository.findByMailAddress(mailAddress);
     }
 
-    public void signin(String mailAddress, String password) {
+    public User signin(String mailAddress, String password) {
         Optional<User> user = userRepository.findByMailAddress(mailAddress);
 
         // 該当ユーザーが存在しない場合、認証エラー発生
@@ -50,5 +50,7 @@ public class AuthService {
         if (!passwordEncoder.matches(password, foundUser.passwordHash())) {
             throw new AuthenticationFailedException();
         }
+
+        return foundUser;
     }
 }
