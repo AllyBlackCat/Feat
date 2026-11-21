@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -84,10 +83,6 @@ public class AuthServiceTest {
             .thenReturn(true);
 
         when(user.available()).thenReturn(true);
-
-        assertDoesNotThrow(
-            () -> authService.signin("test@example.com", "correct-password")
-        );
 
         User result = authService.signin(
             "test@example.com",
