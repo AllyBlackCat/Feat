@@ -2,9 +2,13 @@ package io.github.allyblackcat.feat.auth;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.mock.web.MockHttpSession;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -13,6 +17,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.github.allyblackcat.feat.common.exception.GlobalExceptionHandler;
+import io.github.allyblackcat.feat.user.User;
+
+
 
 public class AuthControllerTest {
 
@@ -27,16 +34,36 @@ public class AuthControllerTest {
     @Test
     @DisplayName("emailとpasswordが有効な場合、入力検証を通過すること")
     void testSigninWithValidRequest() throws Exception {
+
+        User user = mock(User.class);
+
+        when(authService.signin("test@example.com", "password123"))
+            .thenReturn(user);
+
+        when(user.id()).thenReturn(1L);
+
+
         String requestBody = """ 
             {
                 "email": "test@example.com",
                 "password": "password123"
             }
         """;
+
+        MockHttpSession session = new MockHttpSession();
+        String oldSessionId = session.getId();
         mockMvc.perform(post("/api/auth/signin")
+                .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(request().sessionAttribute("USER_ID", 1L))
+                .andExpect(result ->
+                    assertNotEquals(
+                        oldSessionId,
+                        result.getRequest().getSession(false).getId()
+                    )
+                );
 
         verify(authService).signin("test@example.com", "password123");
     }
@@ -129,6 +156,9 @@ public class AuthControllerTest {
                 .content(requestBody))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("ERROR-01001"))
-                .andExpect(jsonPath("$.message").value("認証に失敗しました。"));
+                .andExpect(jsonPath("$.message").value("認証に失敗しました。"))
+                .andExpect(result ->
+                    assertNull(result.getRequest().getSession(false))
+                );
     }
 }

@@ -6,6 +6,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpSession;
+
+import io.github.allyblackcat.feat.user.User;
 
 @RestController
 public class AuthController {
@@ -20,6 +23,14 @@ public class AuthController {
     public void signin(
             @Valid @RequestBody SigninRequest request, 
             HttpServletRequest httpRequest) {
-        authService.signin(request.email(), request.password());
+
+        User user = authService.signin(
+            request.email(), 
+            request.password()
+        );
+
+        HttpSession session = httpRequest.getSession(true);
+        httpRequest.changeSessionId();
+        session.setAttribute("USER_ID", user.id());
     }
 }
