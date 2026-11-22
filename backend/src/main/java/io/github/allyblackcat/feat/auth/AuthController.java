@@ -17,5 +17,6 @@ public class AuthController {
 
     @PostMapping("/api/auth/signin")
     public void signin(@Valid @RequestBody SigninRequest request) {
+        authService.signin(request.email(), request.password());
     }
 }
