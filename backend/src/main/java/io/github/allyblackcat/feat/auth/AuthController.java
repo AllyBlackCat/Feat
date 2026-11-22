@@ -4,6 +4,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 @RestController
@@ -16,7 +17,9 @@ public class AuthController {
     }
 
     @PostMapping("/api/auth/signin")
-    public void signin(@Valid @RequestBody SigninRequest request) {
+    public void signin(
+            @Valid @RequestBody SigninRequest request, 
+            HttpServletRequest httpRequest) {
         authService.signin(request.email(), request.password());
     }
 }
