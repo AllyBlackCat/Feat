@@ -9,13 +9,17 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import io.github.allyblackcat.feat.common.exception.GlobalExceptionHandler;
 
 public class AuthControllerTest {
 
+    private final AuthService authService = mock(AuthService.class);
+
     private final MockMvc mockMvc = MockMvcBuilders
-            .standaloneSetup(new AuthController(mock(AuthService.class)))
+            .standaloneSetup(new AuthController(authService))
             .setControllerAdvice(new GlobalExceptionHandler())
             .build();
 
@@ -33,7 +37,10 @@ public class AuthControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
                 .andExpect(status().isOk());
+
+        verify(authService).signin("test@example.com", "password123");
     }
+
     // 異常系
     @Test
     @DisplayName("emailが空文字の場合、400エラーが返ること")
@@ -102,5 +109,26 @@ public class AuthControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("ERROR-01002"))
                 .andExpect(jsonPath("$.message").value("入力内容に不備があります。"));
+    }
+
+    @Test 
+    @DisplayName("認証失敗時に401エラーが返ること")
+    void testSigninAuthenticationFailed() throws Exception {
+        when(authService.signin("test@example.com", "wrong-password"))
+                .thenThrow(new AuthenticationFailedException());
+
+        String requestBody = """
+            {
+                "email": "test@example.com",
+                "password": "wrong-password"
+            }
+            """;
+
+        mockMvc.perform(post("/api/auth/signin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("ERROR-01001"))
+                .andExpect(jsonPath("$.message").value("認証に失敗しました。"));
     }
 }
