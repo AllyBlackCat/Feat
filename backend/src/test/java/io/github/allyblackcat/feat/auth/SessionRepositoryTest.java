@@ -146,4 +146,103 @@ public class SessionRepositoryTest {
 
         assertTrue(result.isEmpty());
     }
+
+    @Test
+    @Transactional
+    @DisplayName("セッションの最終操作日時を更新できること")
+    void updateLastActivitySuccessfully() {
+
+        Long userId = jdbcTemplate.queryForObject("""
+            INSERT INTO users (
+                mail_address, name, screen_name,
+                password_hash, must_change_password
+            )
+            VALUES (?, ?, ?, ?, ?)
+            RETURNING id
+            """,
+            Long.class,
+            "session-update@example.invalid",
+            "テストユーザー",
+            "テスト",
+            "dummy-hash",
+            false
+        );
+
+        String tokenHash = "c".repeat(64);
+
+        OffsetDateTime expiresAt = OffsetDateTime.now()
+            .plusHours(8)
+            .truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+
+        sessionRepository.create(userId, tokenHash, expiresAt);
+
+        OffsetDateTime updatedAt = OffsetDateTime.now()
+            .plusMinutes(5)
+            .truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+
+        int updatedRows =
+            sessionRepository.updateLastActivity(tokenHash, updatedAt);
+
+        Session session = sessionRepository
+            .findByTokenHash(tokenHash)
+            .orElseThrow();
+
+        assertEquals(1, updatedRows);
+        assertEquals(
+            updatedAt.toInstant(),
+            session.lastActivityAt().toInstant()
+        );
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("セッションを失効できること")
+    void revokeSessionSuccessfully() {
+
+        Long userId = jdbcTemplate.queryForObject("""
+            INSERT INTO users (
+                mail_address, name, screen_name,
+                password_hash, must_change_password
+            )
+            VALUES (?, ?, ?, ?, ?)
+            RETURNING id
+            """,
+            Long.class,
+            "session-revoke@example.invalid",
+            "テストユーザー",
+            "テスト",
+            "dummy-hash",
+            false
+        );
+
+        String tokenHash = "d".repeat(64);
+
+        OffsetDateTime expiresAt = OffsetDateTime.now()
+            .plusHours(8)
+            .truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+
+        sessionRepository.create(userId, tokenHash, expiresAt);
+
+        OffsetDateTime revokedAt = OffsetDateTime.now()
+            .truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+
+        int updatedRows =
+            sessionRepository.revoke(tokenHash, revokedAt);
+
+        Session session = sessionRepository
+            .findByTokenHash(tokenHash)
+            .orElseThrow();
+
+        assertEquals(1, updatedRows);
+        assertEquals(
+            revokedAt.toInstant(),
+            session.revokedAt().toInstant()
+        );
+
+        // 二重失効は更新しない
+        assertEquals(
+            0,
+            sessionRepository.revoke(tokenHash, revokedAt.plusSeconds(1))
+        );
+    }
 }

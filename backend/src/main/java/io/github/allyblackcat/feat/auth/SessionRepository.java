@@ -66,4 +66,42 @@ public class SessionRepository {
             tokenHash
         ).stream().findFirst();
     }
+
+    public int updateLastActivity(
+            String tokenHash,
+            OffsetDateTime lastActivityAt) {
+
+        String sql = """
+            UPDATE sessions
+            SET last_activity_at = ?
+            WHERE token_hash = ?
+            AND revoked_at IS NULL
+            AND expires_at > ?
+            """;
+
+        return jdbcTemplate.update(
+            sql,
+            lastActivityAt,
+            tokenHash,
+            lastActivityAt
+        );
+    }
+
+    public int revoke(
+            String tokenHash,
+            OffsetDateTime revokedAt) {
+
+        String sql = """
+            UPDATE sessions
+            SET revoked_at = ?
+            WHERE token_hash = ?
+            AND revoked_at IS NULL
+            """;
+
+        return jdbcTemplate.update(
+            sql,
+            revokedAt,
+            tokenHash
+        );
+    }
 }
