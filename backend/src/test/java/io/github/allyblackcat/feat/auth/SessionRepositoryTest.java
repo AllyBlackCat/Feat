@@ -11,6 +11,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -88,5 +89,61 @@ public class SessionRepositoryTest {
             expiresAt.toInstant(),
             actualExpiresAt.toInstant()
         );
+    }
+    @Test
+    @Transactional
+    @DisplayName("存在するセッションを検索できること")
+    void findByTokenHashFound() {
+
+        // テスト用ユーザーを登録
+        Long userId = jdbcTemplate.queryForObject("""
+            INSERT INTO users (
+                mail_address,
+                name,
+                screen_name,
+                password_hash,
+                must_change_password
+            )
+            VALUES (?, ?, ?, ?, ?)
+            RETURNING id
+            """,
+            Long.class,
+            "session-find@example.invalid",
+            "テストユーザー",
+            "テスト",
+            "dummy-hash",
+            false
+        );
+
+        String tokenHash = "b".repeat(64);
+        OffsetDateTime expiresAt = OffsetDateTime.now()
+            .plusHours(8)
+            .truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+
+        // セッション登録
+        sessionRepository.create(userId, tokenHash, expiresAt);
+
+        // セッション検索
+        Session session = sessionRepository
+            .findByTokenHash(tokenHash)
+            .orElseThrow();
+
+        // 登録内容の検証
+        assertEquals(userId, session.userId());
+        assertEquals(tokenHash, session.tokenHash());
+        assertEquals(
+            expiresAt.toInstant(),
+            session.expiresAt().toInstant()
+        );
+    }
+    @Test
+    @DisplayName("存在しないセッションは取得されないこと")
+    void findByTokenHashNotFound() {
+
+        var result = sessionRepository.findByTokenHash(
+            "nonexistent-token-hash"
+        );
+
+        assertTrue(result.isEmpty());
     }
 }
