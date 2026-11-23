@@ -1,4 +1,3 @@
-
 package io.github.allyblackcat.feat.auth;
 
 import org.junit.jupiter.api.Test;
