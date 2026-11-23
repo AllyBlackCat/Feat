@@ -1,36 +1,50 @@
 package io.github.allyblackcat.feat.auth;
 
-import org.springframework.web.bind.annotation.RestController;
+import java.time.Duration;
+
+import jakarta.validation.Valid;
+
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
-import jakarta.servlet.http.HttpSession;
-
-import io.github.allyblackcat.feat.user.User;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class AuthController {
 
-    private final AuthService authService;
+    private final SigninSessionService signinSessionService;
 
-    public AuthController(AuthService authService) {
-        this.authService = authService;
+    public AuthController(
+            SigninSessionService signinSessionService) {
+
+        this.signinSessionService = signinSessionService;
     }
 
     @PostMapping("/api/auth/signin")
-    public void signin(
-            @Valid @RequestBody SigninRequest request, 
-            HttpServletRequest httpRequest) {
+    public ResponseEntity<Void> signin(
+            @Valid @RequestBody SigninRequest request) {
 
-        User user = authService.signin(
-            request.email(), 
+        String token = signinSessionService.signin(
+            request.email(),
             request.password()
         );
 
-        HttpSession session = httpRequest.getSession(true);
-        httpRequest.changeSessionId();
-        session.setAttribute("USER_ID", user.id());
+        ResponseCookie cookie = ResponseCookie
+            .from("FEAT_SESSION", token)
+            .httpOnly(true)
+            .secure(true)
+            .sameSite("Lax")
+            .path("/")
+            .maxAge(Duration.ofHours(8))
+            .build();
+
+        return ResponseEntity.ok()
+            .header(
+                HttpHeaders.SET_COOKIE,
+                cookie.toString()
+            )
+            .build();
     }
 }
