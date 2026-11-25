@@ -21,9 +21,11 @@ class AuthControllerTest {
     private final SigninSessionService signinSessionService =
         mock(SigninSessionService.class);
 
+    private final MeService meService = mock(MeService.class);
+
     private final MockMvc mockMvc = MockMvcBuilders
         .standaloneSetup(
-            new AuthController(signinSessionService)
+            new AuthController(signinSessionService, meService)
         )
         .setControllerAdvice(new GlobalExceptionHandler())
         .build();
