@@ -68,22 +68,24 @@ public class SessionRepository {
     }
 
     public int updateLastActivity(
-            String tokenHash,
-            OffsetDateTime lastActivityAt) {
-
+        String tokenHash,
+        OffsetDateTime lastActivityAt) {
+        
         String sql = """
             UPDATE sessions
             SET last_activity_at = ?
             WHERE token_hash = ?
-            AND revoked_at IS NULL
-            AND expires_at > ?
+                AND revoked_at IS NULL
+                AND expires_at > ?
+                AND last_activity_at > ?
             """;
-
+        
         return jdbcTemplate.update(
             sql,
             lastActivityAt,
             tokenHash,
-            lastActivityAt
+            lastActivityAt,
+            lastActivityAt.minusMinutes(30)
         );
     }
 
