@@ -71,4 +71,51 @@ public class UserRepository {
         return users.stream().findFirst();
     }
 
+    public Optional<User> findById(Long id) {
+
+        String sql = """
+            SELECT
+                id,
+                mail_address,
+                name,
+                screen_name,
+                department,
+                administrator,
+                is_available,
+                password_hash,
+                must_change_password,
+                failed_login_count,
+                last_failed_login_at,
+                locked_at,
+                created_at,
+                updated_at
+            FROM users
+            WHERE id = ?
+            """;
+
+        return jdbcTemplate.query(
+            sql,
+            (rs, rowNum) -> new User(
+                rs.getLong("id"),
+                rs.getString("mail_address"),
+                rs.getString("name"),
+                rs.getString("screen_name"),
+                rs.getString("department"),
+                rs.getBoolean("administrator"),
+                rs.getBoolean("is_available"),
+                rs.getString("password_hash"),
+                rs.getBoolean("must_change_password"),
+                rs.getInt("failed_login_count"),
+                rs.getObject("last_failed_login_at",
+                    OffsetDateTime.class),
+                rs.getObject("locked_at",
+                    OffsetDateTime.class),
+                rs.getObject("created_at",
+                    OffsetDateTime.class),
+                rs.getObject("updated_at",
+                    OffsetDateTime.class)
+            ),
+            id
+        ).stream().findFirst();
+    }
 }
