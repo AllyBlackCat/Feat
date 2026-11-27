@@ -465,4 +465,220 @@ class AuthIntegrationTest {
             .andExpect(jsonPath("$.code")
                 .value("ERROR-00001"));
     }
+    private record CsrfCredentials(
+        String token,
+        Cookie cookie
+    ) {}
+
+    private CsrfCredentials issueCsrf() throws Exception {
+
+        var response = mockMvc.perform(get("/api/auth/csrf"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse();
+
+        String csrfToken = JsonPath.read(
+            response.getContentAsString(), "$.token"
+        );
+
+        Cookie csrfCookie =
+            response.getCookie("__Host-XSRF-TOKEN");
+
+        assertNotNull(csrfCookie);
+
+        return new CsrfCredentials(csrfToken, csrfCookie);
+    }
+
+    private Long createSignoutTestUser(String email) {
+
+        return jdbcTemplate.queryForObject("""
+            INSERT INTO users (
+                mail_address, name, screen_name,
+                password_hash, must_change_password
+            )
+            VALUES (?, ?, ?, ?, ?)
+            RETURNING id
+            """,
+            Long.class,
+            email,
+            "ログアウト検証",
+            "検証",
+            "dummy-hash",
+            false
+        );
+    }
+
+    private String createSignoutTestSession(Long userId) {
+
+        String token = tokenService.generateToken();
+
+        sessionRepository.create(
+            userId,
+            tokenService.hashToken(token),
+            OffsetDateTime.now().plusHours(8)
+        );
+
+        return token;
+    }
+    @Test
+    @Transactional
+    @DisplayName("二重ログアウトでも200を返すこと")
+    void signoutTwiceReturnsOk() throws Exception {
+
+        Long userId = createSignoutTestUser(
+            "signout-twice@example.invalid"
+        );
+
+        String token = createSignoutTestSession(userId);
+        String tokenHash = tokenService.hashToken(token);
+
+        CsrfCredentials csrf = issueCsrf();
+
+        // 1回目
+        mockMvc.perform(post("/api/auth/signout")
+                .cookie(
+                    new MockCookie("FEAT_SESSION", token),
+                    csrf.cookie()
+                )
+                .header("X-XSRF-TOKEN", csrf.token()))
+            .andExpect(status().isOk());
+
+        OffsetDateTime firstRevokedAt = sessionRepository
+            .findByTokenHash(tokenHash)
+            .orElseThrow()
+            .revokedAt();
+
+        assertNotNull(firstRevokedAt);
+
+        // 2回目
+        mockMvc.perform(post("/api/auth/signout")
+                .cookie(
+                    new MockCookie("FEAT_SESSION", token),
+                    csrf.cookie()
+                )
+                .header("X-XSRF-TOKEN", csrf.token()))
+            .andExpect(status().isOk());
+
+        OffsetDateTime secondRevokedAt = sessionRepository
+            .findByTokenHash(tokenHash)
+            .orElseThrow()
+            .revokedAt();
+
+        assertEquals(
+            firstRevokedAt.toInstant(),
+            secondRevokedAt.toInstant()
+        );
+    }
+
+    @Test
+    @DisplayName("セッションがなくてもログアウトできること")
+    void signoutWithoutSessionReturnsOk() throws Exception {
+
+        CsrfCredentials csrf = issueCsrf();
+
+        String setCookie = mockMvc.perform(
+                post("/api/auth/signout")
+                    .cookie(csrf.cookie())
+                    .header("X-XSRF-TOKEN", csrf.token())
+            )
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getHeader(HttpHeaders.SET_COOKIE);
+
+        assertNotNull(setCookie);
+        assertTrue(setCookie.contains("FEAT_SESSION="));
+        assertTrue(setCookie.contains("Max-Age=0"));
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("ログアウトしても別端末のセッションは維持すること")
+    void signoutPreservesOtherSession() throws Exception {
+
+        Long userId = createSignoutTestUser(
+            "signout-multiple@example.invalid"
+        );
+
+        // 同じユーザーで別々のセッションを発行
+        String tokenA = createSignoutTestSession(userId);
+        String tokenB = createSignoutTestSession(userId);
+
+        assertNotEquals(tokenA, tokenB);
+
+        CsrfCredentials csrf = issueCsrf();
+
+        // 端末Aだけログアウト
+        mockMvc.perform(post("/api/auth/signout")
+                .cookie(
+                    new MockCookie("FEAT_SESSION", tokenA),
+                    csrf.cookie()
+                )
+                .header("X-XSRF-TOKEN", csrf.token()))
+            .andExpect(status().isOk());
+
+        Session sessionA = sessionRepository
+            .findByTokenHash(tokenService.hashToken(tokenA))
+            .orElseThrow();
+
+        Session sessionB = sessionRepository
+            .findByTokenHash(tokenService.hashToken(tokenB))
+            .orElseThrow();
+
+        assertNotNull(sessionA.revokedAt());
+        assertNull(sessionB.revokedAt());
+
+        // 端末Aはアクセス不可
+        mockMvc.perform(get("/api/auth/me")
+                .cookie(new MockCookie(
+                    "FEAT_SESSION", tokenA
+                )))
+            .andExpect(status().isUnauthorized());
+
+        // 端末Bは引き続きアクセス可能
+        mockMvc.perform(get("/api/auth/me")
+                .cookie(new MockCookie(
+                    "FEAT_SESSION", tokenB
+                )))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(userId));
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("不正なCSRFトークンではセッションを失効しないこと")
+    void signoutWithInvalidCsrfReturnsForbidden() throws Exception {
+
+        Long userId = createSignoutTestUser(
+            "signout-invalid-csrf@example.invalid"
+        );
+
+        String token = createSignoutTestSession(userId);
+        String tokenHash = tokenService.hashToken(token);
+
+        CsrfCredentials csrf = issueCsrf();
+
+        mockMvc.perform(post("/api/auth/signout")
+                .cookie(
+                    new MockCookie("FEAT_SESSION", token),
+                    csrf.cookie()
+                )
+                .header("X-XSRF-TOKEN", "invalid-csrf-token"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code")
+                .value("ERROR-00001"));
+
+        Session session = sessionRepository
+            .findByTokenHash(tokenHash)
+            .orElseThrow();
+
+        assertNull(session.revokedAt());
+
+        // CSRF検証失敗後も元のセッションは有効
+        mockMvc.perform(get("/api/auth/me")
+                .cookie(new MockCookie(
+                    "FEAT_SESSION", token
+                )))
+            .andExpect(status().isOk());
+    }
 }
