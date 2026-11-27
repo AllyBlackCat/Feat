@@ -224,4 +224,113 @@ class AuthIntegrationTest {
             updatedSession.lastActivityAt().isBefore(before)
         );
     }
+
+    @Test
+    @DisplayName("存在しないセッションでは401を返すこと")
+    void getMeWithInvalidSession() throws Exception {
+
+        mockMvc.perform(
+                get("/api/auth/me")
+                    .cookie(new MockCookie(
+                        "FEAT_SESSION",
+                        "nonexistent-session-token"
+                    ))
+            )
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code")
+                .value("ERROR-01009"))
+            .andExpect(jsonPath("$.message")
+                .value("認証に失敗しました。"))
+            .andExpect(jsonPath("$.id").doesNotExist());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("利用停止ユーザーは有効なセッションでも401を返すこと")
+    void getMeWithUnavailableUser() throws Exception {
+
+        String email = "unavailable-me@example.invalid";
+        String password = "test-password-123";
+
+        // 認証可能なユーザーを登録
+        Long userId = jdbcTemplate.queryForObject("""
+            INSERT INTO users (
+                mail_address,
+                name,
+                screen_name,
+                password_hash,
+                must_change_password
+            )
+            VALUES (?, ?, ?, ?, ?)
+            RETURNING id
+            """,
+            Long.class,
+            email,
+            "利用停止テストユーザー",
+            "利用停止テスト",
+            passwordEncoder.encode(password),
+            false
+        );
+
+        // 正常にログインしてトークンを取得
+        String requestBody = """
+            {
+                "email": "unavailable-me@example.invalid",
+                "password": "test-password-123"
+            }
+            """;
+
+        String setCookie = mockMvc.perform(
+                post("/api/auth/signin")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(requestBody)
+            )
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getHeader(HttpHeaders.SET_COOKIE);
+
+        assertNotNull(setCookie);
+
+        String token = setCookie
+            .split(";", 2)[0]
+            .substring("FEAT_SESSION=".length());
+
+        String tokenHash = tokenService.hashToken(token);
+
+        // セッションが実際に存在することを確認
+        Session session = sessionRepository
+            .findByTokenHash(tokenHash)
+            .orElseThrow();
+
+        assertEquals(userId, session.userId());
+
+        OffsetDateTime originalActivityAt =
+            session.lastActivityAt();
+
+        // ログイン後にユーザーを利用停止
+        int updatedRows = jdbcTemplate.update("""
+            UPDATE users
+            SET is_available = FALSE
+            WHERE id = ?
+            """,
+            userId
+        );
+
+        assertEquals(1, updatedRows);
+
+        // セッションが残っていても本人情報は取得できない
+        mockMvc.perform(
+                get("/api/auth/me")
+                    .cookie(new MockCookie(
+                        "FEAT_SESSION", token
+                    ))
+            )
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code")
+                .value("ERROR-01009"))
+            .andExpect(jsonPath("$.id").doesNotExist())
+            .andExpect(jsonPath("$.mail_address").doesNotExist());
+
+    }
 }
