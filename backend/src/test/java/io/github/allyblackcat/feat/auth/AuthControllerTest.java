@@ -7,12 +7,14 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.mock.web.MockCookie;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import io.github.allyblackcat.feat.common.exception.GlobalExceptionHandler;
 
@@ -181,5 +183,59 @@ class AuthControllerTest {
                 .value("認証に失敗しました。"))
             .andExpect(header()
                 .doesNotExist(HttpHeaders.SET_COOKIE));
+    }
+
+
+    @Test
+    @DisplayName("有効なCookieでログインユーザー情報を取得できること")
+    void testMeWithValidSession() throws Exception {
+
+        MeResponse response = new MeResponse(
+            42L,
+            "test@example.com",
+            "テストユーザー",
+            "テスト",
+            false,
+            false
+        );
+
+        when(meService.getMe("valid-token"))
+            .thenReturn(response);
+
+        mockMvc.perform(get("/api/auth/me")
+                .cookie(new MockCookie(
+                    "FEAT_SESSION", "valid-token"
+                )))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(42))
+            .andExpect(jsonPath("$.mail_address")
+                .value("test@example.com"))
+            .andExpect(jsonPath("$.name")
+                .value("テストユーザー"))
+            .andExpect(jsonPath("$.screen_name")
+                .value("テスト"))
+            .andExpect(jsonPath("$.administrator")
+                .value(false))
+            .andExpect(jsonPath("$.must_change_password")
+                .value(false))
+            .andExpect(jsonPath("$.password_hash")
+                .doesNotExist());
+
+        verify(meService).getMe("valid-token");
+    }
+
+    @Test
+    @DisplayName("Cookieがない場合は401を返すこと")
+    void testMeWithoutCookie() throws Exception {
+
+        when(meService.getMe(null))
+            .thenThrow(new InvalidSessionException());
+
+        mockMvc.perform(get("/api/auth/me"))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code")
+                .value("ERROR-01009"));
+
+        verify(meService).getMe(null);
     }
 }
