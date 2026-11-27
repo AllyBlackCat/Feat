@@ -22,13 +22,16 @@ public class AuthController {
 
     private final SigninSessionService signinSessionService;
     private final MeService meService;
+    private final SignoutSessionService signoutSessionService;
 
     public AuthController(
             SigninSessionService signinSessionService,
-            MeService meService) {
+            MeService meService,
+            SignoutSessionService signoutSessionService) {
 
         this.signinSessionService = signinSessionService;
         this.meService = meService;
+        this.signoutSessionService = signoutSessionService;
     }
 
     @PostMapping("/api/auth/signin")
@@ -50,10 +53,7 @@ public class AuthController {
             .build();
 
         return ResponseEntity.ok()
-            .header(
-                HttpHeaders.SET_COOKIE,
-                cookie.toString()
-            )
+            .header(HttpHeaders.SET_COOKIE, cookie.toString())
             .build();
     }
 
@@ -67,6 +67,32 @@ public class AuthController {
         MeResponse response = meService.getMe(token);
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/api/auth/signout")
+    public ResponseEntity<Void> signout(
+            @CookieValue(
+                value = "FEAT_SESSION",
+                required = false
+            ) String token) {
+
+        signoutSessionService.signout(token);
+
+        ResponseCookie expiredCookie = ResponseCookie
+            .from("FEAT_SESSION", "")
+            .httpOnly(true)
+            .secure(true)
+            .sameSite("Lax")
+            .path("/")
+            .maxAge(Duration.ZERO)
+            .build();
+
+        return ResponseEntity.ok()
+            .header(
+                HttpHeaders.SET_COOKIE,
+                expiredCookie.toString()
+            )
+            .build();
     }
 
     @ExceptionHandler(InvalidSessionException.class)

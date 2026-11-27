@@ -21,6 +21,10 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+
+import jakarta.servlet.http.Cookie;
+import com.jayway.jsonpath.JsonPath;
+
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -339,5 +343,126 @@ class AuthIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.token").isNotEmpty())
             .andExpect(header().exists(HttpHeaders.SET_COOKIE));
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CSRF検証後にログアウトしセッションを失効できること")
+    void signoutRevokesSession() throws Exception {
+
+        String email = "signout-test@example.invalid";
+        String password = "test-password-123";
+
+        Long userId = jdbcTemplate.queryForObject("""
+            INSERT INTO users (
+                mail_address,
+                name,
+                screen_name,
+                password_hash,
+                must_change_password
+            )
+            VALUES (?, ?, ?, ?, ?)
+            RETURNING id
+            """,
+            Long.class,
+            email,
+            "ログアウトテスト",
+            "ログアウト",
+            passwordEncoder.encode(password),
+            false
+        );
+
+        assertNotNull(userId);
+
+        // ログイン
+        String signinCookie = mockMvc.perform(
+                post("/api/auth/signin")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""
+                        {
+                            "email": "signout-test@example.invalid",
+                            "password": "test-password-123"
+                        }
+                        """)
+            )
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getHeader(HttpHeaders.SET_COOKIE);
+
+        assertNotNull(signinCookie);
+
+        String token = signinCookie
+            .split(";", 2)[0]
+            .substring("FEAT_SESSION=".length());
+
+        String tokenHash = tokenService.hashToken(token);
+
+        // CSRFトークンを取得
+        var csrfResponse = mockMvc.perform(
+                get("/api/auth/csrf")
+            )
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse();
+
+        String csrfToken = JsonPath.read(
+            csrfResponse.getContentAsString(),
+            "$.token"
+        );
+
+        Cookie csrfCookie = csrfResponse.getCookie(
+            "__Host-XSRF-TOKEN"
+        );
+
+        assertNotNull(csrfCookie);
+
+        // ログアウト
+        String deletedCookie = mockMvc.perform(
+                post("/api/auth/signout")
+                    .cookie(
+                        new MockCookie("FEAT_SESSION", token),
+                        csrfCookie
+                    )
+                    .header("X-XSRF-TOKEN", csrfToken)
+            )
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getHeader(HttpHeaders.SET_COOKIE);
+
+        assertNotNull(deletedCookie);
+        assertTrue(deletedCookie.contains("FEAT_SESSION="));
+        assertTrue(deletedCookie.contains("Max-Age=0"));
+
+        // DBセッションが失効していることを確認
+        Session session = sessionRepository
+            .findByTokenHash(tokenHash)
+            .orElseThrow();
+
+        assertNotNull(session.revokedAt());
+
+        // 同じCookieでは本人情報を取得できない
+        mockMvc.perform(
+                get("/api/auth/me")
+                    .cookie(new MockCookie(
+                        "FEAT_SESSION", token
+                    ))
+            )
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code")
+                .value("ERROR-01009"));
+    }
+
+    @Test
+    @DisplayName("CSRFトークンなしのログアウトは403を返すこと")
+    void signoutWithoutCsrfReturnsForbidden() throws Exception {
+
+        mockMvc.perform(
+                post("/api/auth/signout")
+            )
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code")
+                .value("ERROR-00001"));
     }
 }
