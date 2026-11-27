@@ -109,22 +109,4 @@ public class SessionRepository {
             revokedAt.minusMinutes(30)
         );
     }
-
-    /*public int revoke(
-            String tokenHash,
-            OffsetDateTime revokedAt) {
-
-        String sql = """
-            UPDATE sessions
-            SET revoked_at = ?
-            WHERE token_hash = ?
-            AND revoked_at IS NULL
-            """;
-
-        return jdbcTemplate.update(
-            sql,
-            revokedAt,
-            tokenHash
-        );
-    }*/
 }
