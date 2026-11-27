@@ -330,4 +330,14 @@ class AuthIntegrationTest {
             .andExpect(jsonPath("$.mail_address").doesNotExist());
 
     }
+
+    @Test
+    @DisplayName("CSRFトークンを取得できること")
+    void getCsrfTokenSuccessfully() throws Exception {
+
+        mockMvc.perform(get("/api/auth/csrf"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.token").isNotEmpty())
+            .andExpect(header().exists(HttpHeaders.SET_COOKIE));
+    }
 }
