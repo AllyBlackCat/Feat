@@ -90,6 +90,27 @@ public class SessionRepository {
     }
 
     public int revoke(
+        String tokenHash,
+        OffsetDateTime revokedAt
+    ) {
+        String sql = """
+            UPDATE sessions
+            SET revoked_at = ?
+            WHERE token_hash = ?
+                AND revoked_at IS NULL
+                AND expires_at > ?
+                AND last_activity_at > ?
+            """;
+        return jdbcTemplate.update(
+            sql,
+            revokedAt,
+            tokenHash,
+            revokedAt,
+            revokedAt.minusMinutes(30)
+        );
+    }
+
+    /*public int revoke(
             String tokenHash,
             OffsetDateTime revokedAt) {
 
@@ -105,5 +126,5 @@ public class SessionRepository {
             revokedAt,
             tokenHash
         );
-    }
+    }*/
 }

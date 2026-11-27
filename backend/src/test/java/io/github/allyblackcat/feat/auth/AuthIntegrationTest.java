@@ -305,9 +305,6 @@ class AuthIntegrationTest {
 
         assertEquals(userId, session.userId());
 
-        OffsetDateTime originalActivityAt =
-            session.lastActivityAt();
-
         // ログイン後にユーザーを利用停止
         int updatedRows = jdbcTemplate.update("""
             UPDATE users
