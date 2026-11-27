@@ -15,11 +15,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.mock.web.MockCookie;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -122,6 +123,105 @@ class AuthIntegrationTest {
         );
         assertFalse(
             session.expiresAt().isAfter(after.plusHours(8))
+        );
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("ログイン後のCookieでDBから本人情報を取得できること")
+    void signinThenGetMeSuccessfully() throws Exception {
+
+        String email = "me-integration@example.invalid";
+        String password = "test-password-123";
+
+        // テストユーザーをDBに登録
+        Long userId = jdbcTemplate.queryForObject("""
+            INSERT INTO users (
+                mail_address,
+                name,
+                screen_name,
+                password_hash,
+                must_change_password,
+                administrator
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            RETURNING id
+            """,
+            Long.class,
+            email,
+            "結合テストユーザー",
+            "結合テスト",
+            passwordEncoder.encode(password),
+            false,
+            false
+        );
+
+        // ログインしてCookieを取得
+        String requestBody = """
+            {
+                "email": "me-integration@example.invalid",
+                "password": "test-password-123"
+            }
+            """;
+
+        String setCookie = mockMvc.perform(
+                post("/api/auth/signin")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(requestBody)
+            )
+            .andExpect(status().isOk())
+            .andExpect(header().exists(HttpHeaders.SET_COOKIE))
+            .andReturn()
+            .getResponse()
+            .getHeader(HttpHeaders.SET_COOKIE);
+
+        assertNotNull(setCookie);
+
+        String token = setCookie
+            .split(";", 2)[0]
+            .substring("FEAT_SESSION=".length());
+
+        // DBのセッション登録を確認
+        String tokenHash = tokenService.hashToken(token);
+
+        Session session = sessionRepository
+            .findByTokenHash(tokenHash)
+            .orElseThrow();
+
+        assertEquals(userId, session.userId());
+
+        OffsetDateTime before = OffsetDateTime.now();
+
+        // 発行されたCookieを使って本人情報を取得
+        mockMvc.perform(
+                get("/api/auth/me")
+                    .cookie(new MockCookie(
+                        "FEAT_SESSION", token
+                    ))
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id")
+                .value(userId))
+            .andExpect(jsonPath("$.mail_address")
+                .value(email))
+            .andExpect(jsonPath("$.name")
+                .value("結合テストユーザー"))
+            .andExpect(jsonPath("$.screen_name")
+                .value("結合テスト"))
+            .andExpect(jsonPath("$.administrator")
+                .value(false))
+            .andExpect(jsonPath("$.must_change_password")
+                .value(false))
+            .andExpect(jsonPath("$.password_hash")
+                .doesNotExist());
+
+        // 最終操作日時の更新を確認
+        Session updatedSession = sessionRepository
+            .findByTokenHash(tokenHash)
+            .orElseThrow();
+
+        assertFalse(
+            updatedSession.lastActivityAt().isBefore(before)
         );
     }
 }
