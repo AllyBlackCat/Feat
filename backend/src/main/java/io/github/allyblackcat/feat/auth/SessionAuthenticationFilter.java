@@ -27,8 +27,10 @@ public class SessionAuthenticationFilter
     @Override
     protected boolean shouldNotFilter(
             HttpServletRequest request) {
-
-        String path = request.getServletPath();
+                
+        String requestUri = request.getRequestURI();
+        String contextPath = request.getContextPath();
+        String path = requestUri.substring(contextPath.length());
 
         return !path.startsWith("/api/")
             || path.startsWith("/api/auth/");
