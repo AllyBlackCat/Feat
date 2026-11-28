@@ -1,5 +1,5 @@
 import { useState, type ChangeEvent, type SubmitEvent } from 'react';
-import submitSignin from './authApi';
+import { submitSignin } from './authApi';
 import './Signin.css';
 
 function Signin() {

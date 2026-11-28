@@ -1,4 +1,4 @@
-async function submitSignin (email: string, password: string) {
+export async function submitSignin (email: string, password: string) {
     const response = await fetch('/api/auth/signin', {
             method: 'POST',
             headers: {
@@ -15,4 +15,12 @@ async function submitSignin (email: string, password: string) {
     return response;
 }
 
-export default submitSignin;
+export async function getMe() {
+    const response = await fetch('/api/auth/me', {
+            method: 'GET',
+            credentials: 'same-origin',
+        }
+    );
+
+    return response;
+}
