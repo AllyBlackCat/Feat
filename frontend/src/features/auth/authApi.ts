@@ -6,8 +6,8 @@ async function submitSignin (email: string, password: string) {
             },
             credentials: 'same-origin',
             body: JSON.stringify({
-                email: email,
-                password: password
+                email, 
+                password
             })
         }
     );

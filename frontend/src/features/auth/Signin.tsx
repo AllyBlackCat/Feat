@@ -1,4 +1,5 @@
 import { useState, type ChangeEvent, type SubmitEvent } from 'react';
+import submitSignin from './authApi';
 import './Signin.css';
 
 function Signin() {
@@ -14,8 +15,19 @@ function Signin() {
         setPassword(event.target.value);
     }
 
-    function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
+    async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
         event.preventDefault();
+        try {
+            const response = await submitSignin(email, password);
+
+            if (!response.ok) {
+                console.log('ログイン処理に失敗しました。')
+                return;
+            }
+
+        } catch (error) {
+            console.error(error);
+        }
     }
 
     return (
