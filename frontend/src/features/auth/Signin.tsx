@@ -6,6 +6,7 @@ function Signin() {
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [errorMessage, setErrorMessage] = useState('');
 
     function handleEmailChange(event: ChangeEvent<HTMLInputElement>) {
         setEmail(event.target.value);
@@ -17,16 +18,18 @@ function Signin() {
 
     async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
         event.preventDefault();
+        setErrorMessage(''); // 毎回エラーメッセージを更新するため
         try {
             const response = await submitSignin(email, password);
 
             if (!response.ok) {
-                console.log('ログイン処理に失敗しました。')
+                setErrorMessage('ログインに失敗しました。');
                 return;
             }
 
         } catch (error) {
             console.error(error);
+            setErrorMessage('通信エラーが発生しました。');
         }
     }
 
@@ -50,6 +53,9 @@ function Signin() {
                         value={password}
                         onChange={handlePasswordChange} />
                     <button type="submit">ログイン</button>
+                    {errorMessage && (
+                        <p role="alert">{errorMessage}</p>
+                    )}
                 </div>
             </form>
         </main>
