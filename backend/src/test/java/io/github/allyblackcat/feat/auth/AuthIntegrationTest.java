@@ -681,4 +681,29 @@ class AuthIntegrationTest {
                 )))
             .andExpect(status().isOk());
     }
+    @Test
+    @DisplayName("未認証で業務APIへアクセスすると401を返すこと")
+    void protectedApiWithoutSessionReturnsUnauthorized()
+            throws Exception {
+
+        mockMvc.perform(get("/api/users"))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code")
+                .value("ERROR-01009"));
+    }
+
+    @Test
+    @DisplayName("無効なセッションで業務APIへアクセスすると401を返すこと")
+    void protectedApiWithInvalidSessionReturnsUnauthorized()
+            throws Exception {
+
+        mockMvc.perform(get("/api/users")
+                .cookie(new MockCookie(
+                    "FEAT_SESSION",
+                    "invalid-session-token"
+                )))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code")
+                .value("ERROR-01009"));
+    }
 }
