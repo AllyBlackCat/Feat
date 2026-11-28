@@ -1,4 +1,6 @@
+import Signin from "./features/auth/Signin";
+
 function App() {
-    return <h1>Feat</h1>
+    return <Signin />
 }
 export default App;
