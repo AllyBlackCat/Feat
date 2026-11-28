@@ -2,4 +2,15 @@ div.signin-form {
     display: flex;
     flex-direction: column;
     gap: 12px;
+
+    width: 100%;
+    max-width: 400px;
+    box-sizing: border-box;
+    margin-inline: auto;
+
+    input {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
 }
