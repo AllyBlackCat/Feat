@@ -11,7 +11,7 @@ function Signin() {
     }
 
     function handlePasswordChange(event: ChangeEvent<HTMLInputElement>) {
-        setEmail(event.target.value);
+        setPassword(event.target.value);
     }
 
     return (
