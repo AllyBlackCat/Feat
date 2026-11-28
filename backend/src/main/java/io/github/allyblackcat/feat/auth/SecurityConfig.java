@@ -44,13 +44,15 @@ public class SecurityConfig {
 
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
-                    "/api/auth/**",
+                    "/api/auth/signin",
+                    "/api/auth/signout",
+                    "/api/auth/me",
+                    "/api/auth/csrf",
                     "/actuator/health"
                 ).permitAll()
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().denyAll()
             )
-
 
             .csrf(csrf -> csrf
                 .csrfTokenRepository(csrfRepository)
