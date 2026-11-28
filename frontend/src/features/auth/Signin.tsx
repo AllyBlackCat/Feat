@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from 'react';
+import { useState, type ChangeEvent, type SubmitEvent } from 'react';
 import './Signin.css';
 
 function Signin() {
@@ -14,9 +14,13 @@ function Signin() {
         setPassword(event.target.value);
     }
 
+    function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
+        event.preventDefault();
+    }
+
     return (
         <main>
-            <form>
+            <form onSubmit={handleSubmit}>
                 <div className="signin-form">
                     <h1>ログイン</h1>
                     <label htmlFor="email">メールアドレス</label>
