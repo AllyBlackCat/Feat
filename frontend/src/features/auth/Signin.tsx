@@ -1,5 +1,5 @@
 import { useState, type ChangeEvent, type SubmitEvent } from 'react';
-import { submitSignin } from './authApi';
+import { submitSignin, getMe } from './authApi';
 import './Signin.css';
 
 function Signin() {
@@ -26,6 +26,14 @@ function Signin() {
                 setErrorMessage('ログインに失敗しました。');
                 return;
             }
+            const meResponse = await getMe();
+
+            if (!meResponse.ok) {
+                setErrorMessage('ユーザー情報の取得に失敗しました');
+                return;
+            }
+            const user = await meResponse.json();
+            console.log(user);
 
         } catch (error) {
             console.error(error);
