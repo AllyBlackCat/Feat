@@ -18,7 +18,7 @@ function Signin() {
 
     async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
         event.preventDefault();
-        setErrorMessage(''); // 毎回エラーメッセージを更新するため
+        setErrorMessage('');
         try {
             const response = await submitSignin(email, password);
 
